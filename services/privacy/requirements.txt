@@ -1,0 +1,8 @@
+grpcio==1.66.1
+grpcio-tools==1.66.1
+protobuf==5.28.2
+psycopg[binary]==3.2.1
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+prometheus-client==0.21.0
+pydantic-settings==2.5.2
