@@ -1,0 +1,196 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: adpulse
+      POSTGRES_PASSWORD: adpulse
+      POSTGRES_DB: adpulse
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./sql/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ./sql/002_indexes.sql:/docker-entrypoint-initdb.d/002_indexes.sql:ro
+      - ./sql/003_seed.sql:/docker-entrypoint-initdb.d/003_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adpulse -d adpulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.7.1
+    hostname: kafka
+    ports:
+      - "19092:19092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  kafka-init:
+    image: apache/kafka:3.7.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint: ["/bin/bash", "-c"]
+    command: >
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic campaign.events --partitions 3 --replication-factor 1
+      && /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic ad.impressions --partitions 3 --replication-factor 1
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    command:
+      - --kafka.server=kafka:9092
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  campaign:
+    build:
+      context: .
+      dockerfile: services/campaign/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://adpulse:adpulse@postgres:5432/adpulse
+      KAFKA_BOOTSTRAP: kafka:9092
+      PORT: "8001"
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  indexer:
+    build:
+      context: .
+      dockerfile: services/indexer/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://adpulse:adpulse@postgres:5432/adpulse
+      GRPC_PORT: "50051"
+      HTTP_PORT: "8002"
+    ports:
+      - "8002:8002"
+      - "50051:50051"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  privacy:
+    build:
+      context: .
+      dockerfile: services/privacy/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://adpulse:adpulse@postgres:5432/adpulse
+      K_THRESHOLD: "50"
+      GRPC_PORT: "50052"
+      HTTP_PORT: "8004"
+    ports:
+      - "8004:8004"
+      - "50052:50052"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  serving:
+    build:
+      context: .
+      dockerfile: services/serving/Dockerfile
+    environment:
+      INDEXER_GRPC: http://indexer:50051
+      PRIVACY_GRPC: http://privacy:50052
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP: kafka:9092
+      DATABASE_URL: postgresql://adpulse:adpulse@postgres:5432/adpulse
+      HTTP_PORT: "8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      indexer:
+        condition: service_started
+      privacy:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  analytics:
+    build:
+      context: .
+      dockerfile: services/analytics/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://adpulse:adpulse@postgres:5432/adpulse
+      KAFKA_BOOTSTRAP: kafka:9092
+      HTTP_PORT: "8003"
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - campaign
+      - indexer
+      - serving
+      - analytics
+      - privacy
+      - kafka-exporter
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

@@ -1,0 +1,11 @@
+.git
+**/__pycache__
+**/*.pyc
+target
+.venv
+*.md
+k8s
+loadtest
+observability/grafana/dashboards
+.github
+docs
