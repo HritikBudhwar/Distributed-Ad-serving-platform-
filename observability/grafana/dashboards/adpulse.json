@@ -1,0 +1,82 @@
+{
+  "title": "AdPulse Serving",
+  "uid": "adpulse-serving",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Serve QPS",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(adpulse_serve_requests_total[1m])",
+          "legendFormat": "qps"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Serve latency (seconds)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(adpulse_serve_latency_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(adpulse_serve_latency_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(adpulse_serve_latency_seconds_bucket[1m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache hit ratio",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(adpulse_cache_hits_total[1m]) / clamp_min(rate(adpulse_cache_hits_total[1m]) + rate(adpulse_cache_misses_total[1m]), 0.001)",
+          "legendFormat": "hit_rate"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Serve errors",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(adpulse_serve_errors_total[1m])",
+          "legendFormat": "errors"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Kafka consumer lag",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum by (consumergroup, topic) (kafka_consumergroup_lag)",
+          "legendFormat": "{{consumergroup}} {{topic}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Kafka broker offsets",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum by (topic) (kafka_topic_partition_current_offset)",
+          "legendFormat": "{{topic}}"
+        }
+      ]
+    }
+  ]
+}

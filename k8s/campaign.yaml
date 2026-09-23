@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campaign
+  namespace: adpulse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: campaign
+  template:
+    metadata:
+      labels:
+        app: campaign
+    spec:
+      containers:
+        - name: campaign
+          image: adpulse/campaign:local
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: adpulse-config
+          env:
+            - name: PORT
+              value: "8001"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: campaign
+  namespace: adpulse
+spec:
+  selector:
+    app: campaign
+  ports:
+    - port: 8001
+      targetPort: 8001

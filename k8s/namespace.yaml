@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: adpulse
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adpulse-config
+  namespace: adpulse
+data:
+  DATABASE_URL: postgresql://adpulse:adpulse@postgres:5432/adpulse
+  KAFKA_BOOTSTRAP: kafka:9092
+  REDIS_URL: redis://redis:6379/0
+  INDEXER_GRPC: http://indexer:50051
+  PRIVACY_GRPC: http://privacy:50052
+  K_THRESHOLD: "50"

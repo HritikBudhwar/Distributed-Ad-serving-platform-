@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: adpulse
+resources:
+  - namespace.yaml
+  - infra.yaml
+  - campaign.yaml
+  - indexer.yaml
+  - serving.yaml
+  - analytics.yaml
+  - privacy.yaml

@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package adpulse;
+
+option go_package = "github.com/adpulse/proto";
+
+message LookupRequest {
+  string query = 1;
+  string request_id = 2;
+  int32 max_candidates = 3;
+}
+
+message Candidate {
+  string campaign_id = 1;
+  double relevance = 2;
+  string headline = 3;
+  string landing_url = 4;
+  int64 bid_micros = 5;
+  int64 remaining_budget_micros = 6;
+  repeated string geo_targets = 7;
+  string status = 8;
+  repeated string keywords = 9;
+  string advertiser_id = 10;
+}
+
+message LookupResponse {
+  repeated Candidate candidates = 1;
+  int32 index_size = 2;
+  int64 index_version = 3;
+}
+
+service Indexer {
+  rpc Lookup(LookupRequest) returns (LookupResponse);
+}
+
+message PrivacyRequest {
+  string request_id = 1;
+  string cohort_id = 2;
+  repeated string campaign_ids = 3;
+}
+
+message PrivacyResponse {
+  repeated string allowed_campaign_ids = 1;
+  bool cohort_eligible = 2;
+  string reason = 3;
+  int32 cohort_size = 4;
+  int32 k_threshold = 5;
+}
+
+service Privacy {
+  rpc Filter(PrivacyRequest) returns (PrivacyResponse);
+}
