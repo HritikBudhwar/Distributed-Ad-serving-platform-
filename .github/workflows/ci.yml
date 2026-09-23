@@ -42,3 +42,5 @@ jobs:
         run: cargo test
         env:
           PROTO_FILE: ${{ github.workspace }}/proto/adpulse.proto
+          CFLAGS: -I/usr/include/x86_64-linux-gnu
+          CXXFLAGS: -I/usr/include/x86_64-linux-gnu
