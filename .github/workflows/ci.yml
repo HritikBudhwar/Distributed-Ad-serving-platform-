@@ -32,18 +32,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             cmake g++ protobuf-compiler pkg-config libssl-dev libsasl2-dev \
-            zlib1g-dev libcurl4-openssl-dev libzstd-dev
-      - name: Verify native headers
-        run: |
-          test -f /usr/include/x86_64-linux-gnu/curl/curl.h
-          pkg-config --exists libcurl
+            zlib1g-dev libzstd-dev
       - name: Test serving
         working-directory: services/serving
         run: cargo test
         env:
           PROTO_FILE: ${{ github.workspace }}/proto/adpulse.proto
-          CFLAGS: -I/usr/include/x86_64-linux-gnu
-          CXXFLAGS: -I/usr/include/x86_64-linux-gnu
-          CPATH: /usr/include/x86_64-linux-gnu
-          C_INCLUDE_PATH: /usr/include/x86_64-linux-gnu
-          CPLUS_INCLUDE_PATH: /usr/include/x86_64-linux-gnu
