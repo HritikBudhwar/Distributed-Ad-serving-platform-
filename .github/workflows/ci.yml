@@ -44,3 +44,6 @@ jobs:
           PROTO_FILE: ${{ github.workspace }}/proto/adpulse.proto
           CFLAGS: -I/usr/include/x86_64-linux-gnu
           CXXFLAGS: -I/usr/include/x86_64-linux-gnu
+          CPATH: /usr/include/x86_64-linux-gnu
+          C_INCLUDE_PATH: /usr/include/x86_64-linux-gnu
+          CPLUS_INCLUDE_PATH: /usr/include/x86_64-linux-gnu
