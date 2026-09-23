@@ -1,6 +1,7 @@
 FROM rust:bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake g++ protobuf-compiler pkg-config libssl-dev libsasl2-dev zlib1g-dev \
+    libcurl4-openssl-dev libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY proto /proto
